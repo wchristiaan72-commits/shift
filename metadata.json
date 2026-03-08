@@ -1,0 +1,5 @@
+{
+  "name": "SubPilot Blueprint",
+  "description": "A production blueprint for a subscription tracker SaaS mobile application.",
+  "requestFramePermissions": []
+}
