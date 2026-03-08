@@ -1,6 +1,6 @@
 import express from "express";
 import cors from "cors";
-import { Pool } from "pg";
+import mysql from "mysql2/promise";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
@@ -19,7 +19,7 @@ const JWT_SECRET =
 
 const YOCO_SECRET = process.env.YOCO_SECRET_KEY;
 
-let pool: Pool | null = null;
+let pool: mysql.Pool | null = null;
 
 function getDb() {
   if (!pool) {
@@ -29,19 +29,23 @@ function getDb() {
 
     let connectionString = process.env.DATABASE_URL;
     
+    if (connectionString.startsWith("postgres://") || connectionString.startsWith("postgresql://")) {
+      throw new Error(
+        "DATABASE CONNECTION ERROR: You are trying to connect to a PostgreSQL database, but the app is now configured for MySQL.\n" +
+        "Please create a MySQL database in Railway, copy its 'Public TCP URL' (it should start with mysql://), and update the DATABASE_URL secret."
+      );
+    }
+
     // If we are in development (AI Studio) and using an internal URL, throw a helpful error
     if (process.env.NODE_ENV !== "production" && connectionString.includes(".internal")) {
       throw new Error(
         "DATABASE CONNECTION ERROR: You are using a Railway internal URL (.internal) in AI Studio.\n" +
         "AI Studio cannot access Railway's private network.\n" +
-        "Please go to your Railway Dashboard -> Postgres -> Connect -> 'Public TCP URL' and paste that into the AI Studio Secrets panel."
+        "Please go to your Railway Dashboard -> MySQL -> Connect -> 'Public TCP URL' and paste that into the AI Studio Secrets panel."
       );
     }
 
-    pool = new Pool({
-      connectionString,
-      ssl: { rejectUnauthorized: false }
-    });
+    pool = mysql.createPool(connectionString);
   }
 
   return pool;
@@ -57,7 +61,7 @@ async function initDb() {
 
     await db.query(`
       CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
+        id INT AUTO_INCREMENT PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
         first_name VARCHAR(255),
@@ -68,10 +72,14 @@ async function initDb() {
 
     // Add columns if they don't exist (for existing databases)
     try {
-      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS first_name VARCHAR(255);`);
-      await db.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_name VARCHAR(255);`);
+      await db.query(`ALTER TABLE users ADD COLUMN first_name VARCHAR(255);`);
     } catch (e) {
-      console.log("Columns might already exist or error adding them:", e);
+      // Ignore if column already exists
+    }
+    try {
+      await db.query(`ALTER TABLE users ADD COLUMN last_name VARCHAR(255);`);
+    } catch (e) {
+      // Ignore if column already exists
     }
 
     console.log("Database initialized");
@@ -111,15 +119,16 @@ app.post("/api/auth/signup", async (req, res) => {
       const db = getDb();
       const hashedPassword = await bcrypt.hash(password, 10);
 
-      const result = await db.query(
-        "INSERT INTO users (email,password,first_name,last_name) VALUES ($1,$2,$3,$4) RETURNING id,email,first_name,last_name",
+      const [result]: any = await db.query(
+        "INSERT INTO users (email,password,first_name,last_name) VALUES (?,?,?,?)",
         [email, hashedPassword, firstName || null, lastName || null]
       );
+      
       user = {
-        id: result.rows[0].id,
-        email: result.rows[0].email,
-        firstName: result.rows[0].first_name,
-        lastName: result.rows[0].last_name
+        id: result.insertId,
+        email: email,
+        firstName: firstName,
+        lastName: lastName
       };
     }
 
@@ -136,7 +145,7 @@ app.post("/api/auth/signup", async (req, res) => {
 
   } catch (err: any) {
 
-    if (err.code === "23505") {
+    if (err.code === "ER_DUP_ENTRY") {
       return res.status(400).json({
         error: "Email already exists"
       });
@@ -177,12 +186,12 @@ app.post("/api/auth/login", async (req, res) => {
     } else {
       const db = getDb();
 
-      const result = await db.query(
-        "SELECT * FROM users WHERE email=$1",
+      const [rows]: any = await db.query(
+        "SELECT * FROM users WHERE email=?",
         [email]
       );
 
-      const dbUser = result.rows[0];
+      const dbUser = rows[0];
 
       if (!dbUser) {
         return res.status(401).json({
