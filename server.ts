@@ -27,12 +27,19 @@ function getDb() {
       throw new Error("DATABASE_URL environment variable is missing. Please add it to the AI Studio Secrets panel.");
     }
 
-    if (process.env.DATABASE_URL.includes(".internal")) {
-      throw new Error("You are using an internal Railway URL (.internal). You must use the Public TCP URL provided by Railway to connect from outside.");
+    let connectionString = process.env.DATABASE_URL;
+    
+    // If we are in development (AI Studio) and using an internal URL, throw a helpful error
+    if (process.env.NODE_ENV !== "production" && connectionString.includes(".internal")) {
+      throw new Error(
+        "DATABASE CONNECTION ERROR: You are using a Railway internal URL (.internal) in AI Studio.\n" +
+        "AI Studio cannot access Railway's private network.\n" +
+        "Please go to your Railway Dashboard -> Postgres -> Connect -> 'Public TCP URL' and paste that into the AI Studio Secrets panel."
+      );
     }
 
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString,
       ssl: { rejectUnauthorized: false }
     });
   }
@@ -95,7 +102,7 @@ app.post("/api/auth/signup", async (req, res) => {
 
     let user;
 
-    const isDbConfigured = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes(".internal");
+    const isDbConfigured = !!process.env.DATABASE_URL;
 
     if (!isDbConfigured) {
       // Fallback if DB is not configured or is an internal URL
@@ -155,7 +162,7 @@ app.post("/api/auth/login", async (req, res) => {
     let user;
     let valid = false;
 
-    const isDbConfigured = process.env.DATABASE_URL && !process.env.DATABASE_URL.includes(".internal");
+    const isDbConfigured = !!process.env.DATABASE_URL;
 
     if (!isDbConfigured) {
       // Fallback if DB is not configured or is an internal URL
