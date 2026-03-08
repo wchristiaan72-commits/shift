@@ -15,8 +15,19 @@ export default function App() {
   const [token, setToken] = useState<string | null>(() => localStorage.getItem('subpilot_token'));
   
 
-  const handleLogin = (newToken: string, user: any) => {
+  const handleLogin = (newToken: string, user: any, isLogin: boolean) => {
     localStorage.setItem('subpilot_token', newToken);
+    if (user) {
+      localStorage.setItem('subpilot_user', JSON.stringify(user));
+    }
+    
+    // Clear previous user's local data when registering a new account
+    if (!isLogin) {
+      localStorage.removeItem('subpilot_subscriptions');
+      localStorage.removeItem('subpilot_plan');
+      localStorage.removeItem('subpilot_family');
+    }
+    
     setToken(newToken);
   };
 

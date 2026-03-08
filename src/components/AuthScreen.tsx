@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mail, Lock, AlertCircle, ArrowRight, User } from 'lucide-react';
 
 interface AuthScreenProps {
-  onLogin: (token: string, user: any) => void;
+  onLogin: (token: string, user: any, isLogin: boolean) => void;
   }
 
 export function AuthScreen({ onLogin}: AuthScreenProps) {
@@ -42,7 +42,7 @@ export function AuthScreen({ onLogin}: AuthScreenProps) {
         throw new Error(data.error || 'Authentication failed');
       }
 
-      onLogin(data.token, data.user);
+      onLogin(data.token, data.user, isLogin);
     } catch (err: any) {
       setError(err.message);
     } finally {

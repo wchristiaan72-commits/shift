@@ -416,24 +416,23 @@ export function UserApp() {
  return [];
  }
  }
- return [
- {
- id: '1',
- name: 'Netflix',
- cost: 15.49,
- currency: '$',
- billingCycle: 'monthly',
- nextPaymentDate: '2026-03-15',
- logo: 'N',
- category: 'Streaming',
- cancelUrl: 'https://www.netflix.com/CancelPlan',
- instructions: 'Log in, go to Account, click Cancel Membership.'
- }
- ];
+ return [];
  });
 
  const [userPlan, setUserPlan] = useState(() => {
  return localStorage.getItem('subpilot_plan') || 'Free';
+ });
+
+ const [currentUser, setCurrentUser] = useState<any>(() => {
+ const saved = localStorage.getItem('subpilot_user');
+ if (saved) {
+ try {
+ return JSON.parse(saved);
+ } catch (e) {
+ return null;
+ }
+ }
+ return null;
  });
 
  const [language, setLanguage] = useState(() => {
@@ -573,9 +572,11 @@ export function UserApp() {
  case 'settings':
  return <SettingsScreen 
  userPlan={userPlan} 
+ currentUser={currentUser}
  onNavigate={(screen) => {
  if (screen === 'logout') {
  localStorage.removeItem('subpilot_token');
+ localStorage.removeItem('subpilot_user');
  window.location.reload();
  } else {
  setActiveScreen(screen);
@@ -1057,6 +1058,7 @@ function CancelScreen({ sub, onNavigate, onRemove, currency, userPlan, t }: { su
 
 function SettingsScreen({ 
  userPlan, 
+ currentUser,
  onNavigate,
   language,
  setLanguage,
@@ -1071,6 +1073,7 @@ function SettingsScreen({
  t
 }: { 
  userPlan: string, 
+ currentUser: any,
  onNavigate: (s: string) => void,
   language: string,
  setLanguage: (l: string) => void,
@@ -1117,15 +1120,17 @@ function SettingsScreen({
  {profilePicture ? (
  <img src={profilePicture} alt="Profile" className="w-full h-full object-cover" />
  ) : (
- <span>JD</span>
+ <span>{currentUser ? (currentUser.firstName ? currentUser.firstName[0].toUpperCase() : currentUser.email[0].toUpperCase()) : 'JD'}</span>
  )}
  <div className="absolute inset-0 bg-[#09090b]/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
  <ImageIcon size={20} className="text-white" />
  </div>
  </div>
  <div>
- <h3 className="font-bold text-neutral-900 text-lg">John Doe</h3>
- <p className="text-neutral-500">john@example.com</p>
+ <h3 className="font-bold text-neutral-900 text-lg">
+ {currentUser ? (currentUser.firstName ? `${currentUser.firstName} ${currentUser.lastName || ''}` : currentUser.email.split('@')[0]) : 'John Doe'}
+ </h3>
+ <p className="text-neutral-500">{currentUser ? currentUser.email : 'john@example.com'}</p>
  <span className="inline-block mt-1 px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-neutral-900/20 text-neutral-900">
  {userPlan} Plan
  </span>
