@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { Users, Trash2, Shield, ShieldAlert, Search, RefreshCw, ArrowLeft } from 'lucide-react';
-import { apiFetch } from '../api';
 
 interface User {
   id: number;
@@ -20,7 +19,9 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (screen: string) =>
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const data = await apiFetch('/api/admin/users');
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) throw new Error('Failed to fetch users');
+      const data = await res.json();
       setUsers(data);
     } catch (err: any) {
       setError(err.message);
@@ -37,7 +38,8 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (screen: string) =>
     if (!window.confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      await apiFetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/admin/users/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('Failed to delete user');
       setUsers(users.filter(u => u.id !== id));
     } catch (err: any) {
       alert(err.message);
@@ -46,10 +48,12 @@ export function AdminDashboard({ onNavigate }: { onNavigate: (screen: string) =>
 
   const handleRoleChange = async (id: number, newRole: string) => {
     try {
-      await apiFetch(`/api/admin/users/${id}/role`, {
+      const res = await fetch(`/api/admin/users/${id}/role`, {
         method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: newRole })
       });
+      if (!res.ok) throw new Error('Failed to update role');
       setUsers(users.map(u => u.id === id ? { ...u, role: newRole } : u));
     } catch (err: any) {
       alert(err.message);

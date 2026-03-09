@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Mail, Lock, AlertCircle, ArrowRight, User } from 'lucide-react';
-import { apiFetch } from '../api';
 
 interface AuthScreenProps {
   onLogin: (token: string, user: any, isLogin: boolean) => void;
@@ -31,10 +30,17 @@ export function AuthScreen({ onLogin}: AuthScreenProps) {
         ? { email, password } 
         : { email, password, firstName, lastName };
 
-      const data = await apiFetch(endpoint, {
+      const res = await fetch(endpoint, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Authentication failed');
+      }
 
       onLogin(data.token, data.user, isLogin);
     } catch (err: any) {

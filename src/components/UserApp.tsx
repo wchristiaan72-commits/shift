@@ -23,7 +23,6 @@ import {
 } from 'lucide-react';
 import { LANGUAGES } from '../data/languages';
 import { CURRENCIES } from '../data/currencies';
-import { apiFetch } from '../api';
 
 export interface Subscription {
  id: string;
@@ -1552,14 +1551,21 @@ function UpgradeScreen({ onNavigate, onUpgrade, currency, exchangeRates, t }: { 
  } else {
  try {
  // Send the token to our backend to finalize the charge
- const data = await apiFetch('/api/pay/yoco', {
+ const res = await fetch('/api/pay/yoco', {
  method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({
  token: result.id,
  amountInCents: amountInCents,
  currency: currency === 'ZAR' ? 'ZAR' : 'USD'
  })
  });
+
+ const data = await res.json();
+
+ if (!res.ok) {
+ throw new Error(data.error || 'Payment processing failed');
+ }
 
  alert("Payment successful! Welcome to " + planName);
  onUpgrade(planName);
