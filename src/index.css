@@ -14,4 +14,23 @@
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  user-select: none;
+  overscroll-behavior-y: none;
+}
+
+input, textarea {
+  user-select: text;
 }

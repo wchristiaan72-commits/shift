@@ -18,10 +18,12 @@ import {
  Globe,
  DollarSign,
  Users,
+ Shield,
  Image as ImageIcon
 } from 'lucide-react';
 import { LANGUAGES } from '../data/languages';
 import { CURRENCIES } from '../data/currencies';
+import { apiFetch } from '../api';
 
 export interface Subscription {
  id: string;
@@ -403,6 +405,8 @@ const TRANSLATIONS: Record<string, Record<string, string>> = {
  }
 };
 
+import { AdminDashboard } from './AdminDashboard';
+
 export function UserApp() {
  const [showSplash, setShowSplash] = useState(true);
  const [activeScreen, setActiveScreen] = useState('dashboard');
@@ -592,6 +596,8 @@ export function UserApp() {
  />;
  case 'upgrade':
  return <UpgradeScreen onNavigate={setActiveScreen} onUpgrade={(plan) => { setUserPlan(plan); setActiveScreen('settings'); }} currency={currency} exchangeRates={exchangeRates} t={t} />;
+ case 'admin':
+ return <AdminDashboard onNavigate={setActiveScreen} />;
  default:
  return <DashboardScreen subscriptions={subscriptions} onNavigate={setActiveScreen} onSelectSub={() => {}} currency={currency} t={t} />;
  }
@@ -634,7 +640,7 @@ export function UserApp() {
 
  return (
  <div 
- className={`flex items-center justify-center h-full w-full bg-neutral-100`}
+ className={`flex items-center justify-center h-full w-full bg-neutral-100 safe-top safe-bottom`}
  style={customBackground && userPlan === 'Premium' ? {
  backgroundImage: `url(${customBackground})`,
  backgroundSize: 'cover',
@@ -1171,6 +1177,21 @@ function SettingsScreen({
  </div>
  </div>
 
+ {currentUser?.role === 'admin' && (
+ <div>
+ <h4 className="text-xs font-semibold text-neutral-500 uppercase tracking-wider mb-3">Admin</h4>
+ <div className="bg-white border border-neutral-200 rounded-3xl overflow-hidden">
+ <div className="flex justify-between items-center p-4 cursor-pointer hover:bg-neutral-50" onClick={() => onNavigate('admin')}>
+ <div className="flex items-center gap-3">
+ <Shield className="text-neutral-900" size={18} />
+ <span className="text-neutral-900 font-medium">Admin Dashboard</span>
+ </div>
+ <ChevronRight size={16} className="text-neutral-400" />
+ </div>
+ </div>
+ </div>
+ )}
+
  {userPlan === 'Premium' && (
  <div>
  <h4 className="text-xs font-semibold text-neutral-900 uppercase tracking-wider mb-3 flex items-center gap-2">
@@ -1531,21 +1552,14 @@ function UpgradeScreen({ onNavigate, onUpgrade, currency, exchangeRates, t }: { 
  } else {
  try {
  // Send the token to our backend to finalize the charge
- const res = await fetch('/api/pay/yoco', {
+ const data = await apiFetch('/api/pay/yoco', {
  method: 'POST',
- headers: { 'Content-Type': 'application/json' },
  body: JSON.stringify({
  token: result.id,
  amountInCents: amountInCents,
  currency: currency === 'ZAR' ? 'ZAR' : 'USD'
  })
  });
-
- const data = await res.json();
-
- if (!res.ok) {
- throw new Error(data.error || 'Payment processing failed');
- }
 
  alert("Payment successful! Welcome to " + planName);
  onUpgrade(planName);

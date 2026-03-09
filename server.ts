@@ -66,6 +66,7 @@ async function initDb() {
         password VARCHAR(255) NOT NULL,
         first_name VARCHAR(255),
         last_name VARCHAR(255),
+        role VARCHAR(50) DEFAULT 'user',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
@@ -78,6 +79,11 @@ async function initDb() {
     }
     try {
       await db.query(`ALTER TABLE users ADD COLUMN last_name VARCHAR(255);`);
+    } catch (e) {
+      // Ignore if column already exists
+    }
+    try {
+      await db.query(`ALTER TABLE users ADD COLUMN role VARCHAR(50) DEFAULT 'user';`);
     } catch (e) {
       // Ignore if column already exists
     }
@@ -120,15 +126,16 @@ app.post("/api/auth/signup", async (req, res) => {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const [result]: any = await db.query(
-        "INSERT INTO users (email,password,first_name,last_name) VALUES (?,?,?,?)",
-        [email, hashedPassword, firstName || null, lastName || null]
+        "INSERT INTO users (email,password,first_name,last_name,role) VALUES (?,?,?,?,?)",
+        [email, hashedPassword, firstName || null, lastName || null, 'user']
       );
       
       user = {
         id: result.insertId,
         email: email,
         firstName: firstName,
-        lastName: lastName
+        lastName: lastName,
+        role: 'user'
       };
     }
 
@@ -211,7 +218,8 @@ app.post("/api/auth/login", async (req, res) => {
         id: dbUser.id,
         email: dbUser.email,
         firstName: dbUser.first_name,
-        lastName: dbUser.last_name
+        lastName: dbUser.last_name,
+        role: dbUser.role
       };
     }
 
@@ -230,6 +238,62 @@ app.post("/api/auth/login", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 
+});
+
+
+//
+// ADMIN ROUTES
+//
+
+app.get("/api/admin/users", async (req, res) => {
+  try {
+    const isDbConfigured = !!process.env.DATABASE_URL;
+    if (!isDbConfigured) {
+      return res.json([
+        { id: 1, email: "test@example.com", first_name: "Test", last_name: "User", role: "user", created_at: new Date().toISOString() },
+        { id: 2, email: "admin@example.com", first_name: "Admin", last_name: "User", role: "admin", created_at: new Date().toISOString() }
+      ]);
+    }
+
+    const db = getDb();
+    const [rows]: any = await db.query(
+      "SELECT id, email, first_name, last_name, role, created_at FROM users ORDER BY created_at DESC"
+    );
+    res.json(rows);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.delete("/api/admin/users/:id", async (req, res) => {
+  try {
+    const isDbConfigured = !!process.env.DATABASE_URL;
+    if (!isDbConfigured) {
+      return res.json({ success: true });
+    }
+
+    const db = getDb();
+    await db.query("DELETE FROM users WHERE id = ?", [req.params.id]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put("/api/admin/users/:id/role", async (req, res) => {
+  try {
+    const { role } = req.body;
+    const isDbConfigured = !!process.env.DATABASE_URL;
+    if (!isDbConfigured) {
+      return res.json({ success: true });
+    }
+
+    const db = getDb();
+    await db.query("UPDATE users SET role = ? WHERE id = ?", [role, req.params.id]);
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 
